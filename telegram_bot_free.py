@@ -1,8 +1,6 @@
-import os
-os.environ['PORT'] = '0'  # Ігноруємо порт, щоб уникнути помилки Render
-
 import asyncio
 import telegram
+from telegram.ext import Application, CallbackQueryHandler
 import feedparser
 import os
 
@@ -11,23 +9,27 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '7578141836:AAGj_be7DOaq0wT-RL53gVD
 CHAT_ID = os.getenv('CHAT_ID', '8142520596')
 CHANNEL_ID = os.getenv('CHANNEL_ID', 'fiveleagues')
 
-# RSS-стрічки
+# RSS-стрічки для топ-5 ліг Європи
 RSS_FEEDS = [
-    'http://feeds.bbci.co.uk/sport/football/rss.xml',
-    'https://www.skysports.com/rss/12040',
-    'https://e00-marca.uecdn.es/rss/futbol/primera-division.xml',
-    'https://www.kicker.de/bundesliga/rss',
-    'https://www.lequipe.fr/rss/football.xml'
+    'http://feeds.bbci.co.uk/sport/football/premier-league/rss.xml',  # АПЛ (Англія)
+    'https://e00-marca.uecdn.es/rss/futbol/primera-division.xml',     # Ла Ліга (Іспанія)
+    'https://www.gazzetta.it/rss/Xml/calcio.xml',                    # Серія А (Італія)
+    'https://www.kicker.de/bundesliga/rss',                          # Бундесліга (Німеччина)
+    'https://www.lequipe.fr/rss/football.xml'                        # Ліга 1 (Франція)
 ]
 
 # Ініціалізація бота
 bot = telegram.Bot(token=TELEGRAM_TOKEN)
+application = Application.builder().token(TELEGRAM_TOKEN).build()
+
+# Ігнорування порту для Render
+os.environ['PORT'] = '0'
 
 async def fetch_news():
     news = []
     for feed in RSS_FEEDS:
         feed_data = feedparser.parse(feed)
-        for entry in feed_data.entries[:1]:  # Остання новина
+        for entry in feed_data.entries[:1]:  # Беремо лише одну новину з кожної стрічки
             news.append({
                 'title': entry.title,
                 'summary': entry.summary,
@@ -36,21 +38,40 @@ async def fetch_news():
     return news
 
 async def format_post(news_item):
-    comment = "👉 Журналістський вайб: Це може бути гучним трансфером, але все залежить від форми гравця. Ваша думка? 👇"
+    comment = "👉 Журналістський вайб: Гучна новина для фанатів? Твоя думка? 👇"
     return f"""
-⚽️ {news_item['title'].upper()} 🏆
+🔥 *{news_item['title'].upper()}* 🔥
 {news_item['summary'][:250]}...
-🔗 Докладніше: {news_item['link']}
+🌐 [Докладніше]({news_item['link']})
 {comment}
->>> Докладніше про подію <<< 
-✅ Підтвердити / ❌ Відхилити / ✍️ Виправити
+💬 *Твоя дія:*
+✅ Підтвердити | ❌ Відхилити | ✍️ Виправити
 """
 
 async def send_news_to_user():
     news = await fetch_news()
     for item in news:
         post = await format_post(item)
-        await bot.send_message(chat_id=CHAT_ID, text=post)
+        keyboard = [
+            [{"text": "✅ Підтвердити", "callback_data": "confirm"},
+             {"text": "❌ Відхилити", "callback_data": "decline"},
+             {"text": "✍️ Виправити", "callback_data": "edit"}]
+        ]
+        reply_markup = telegram.InlineKeyboardMarkup(keyboard)
+        await bot.send_message(chat_id=CHAT_ID, text=post, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def button_handler(update, context):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "confirm":
+        await query.edit_message_text("✅ Опубліковано в @fiveleagues! (Поки тест)")
+        # Тут можна додати код для публікації в канал, але поки залишимо як є
+    elif query.data == "decline":
+        await query.edit_message_text("❌ Відхилено.")
+    elif query.data == "edit":
+        await query.edit_message_text("✍️ Введи новий текст у відповіді.")
+
+application.add_handler(CallbackQueryHandler(button_handler))
 
 async def main():
     while True:
@@ -58,4 +79,4 @@ async def main():
         await asyncio.sleep(3600)  # Перевірка кожну годину
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    asyncio.run(application.run_polling())
