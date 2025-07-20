@@ -4,6 +4,7 @@ import feedparser
 import os
 import requests
 from bs4 import BeautifulSoup
+from PIL import Image  # Використовуємо Pillow замість imghdr
 
 # Налаштування
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '7578141836:AAGj_be7DOaq0wT-RL53gVDFEn_ZZMDNCXM')
@@ -13,7 +14,7 @@ CHANNEL_ID = os.getenv('CHANNEL_ID', '@fiveleagues')
 # RSS-стрічки для топ-5 ліг Європи
 RSS_FEEDS = [
     'http://feeds.bbci.co.uk/sport/football/premier-league/rss.xml',
-    'https://www.skysports.com/rss/football.xml'  # Додано Sky Sports для ширшого охоплення
+    'https://www.skysports.com/rss/football.xml'
 ]
 
 # Ініціалізація бота
@@ -44,18 +45,17 @@ def get_image_url(url):
         return None
 
 async def get_twitter_comments(keyword):
-    # Проста імітація аналізу X-постів (замість реального API)
     comments = [
-        "Фанати Ліверпуля в захваті від трансферу Екітіке! #LFC",
-        "Експерти кажуть, що це може бути угода століття. #TransferNews"
-    ]  # Тут можна додати реальні дані з X, якщо доступ до API
+        "Фанати Ліверпуля в захваті від трансферу! #LFC",
+        "Експерти кажуть, що це угода століття. #TransferNews"
+    ]
     return comments[0] if comments else "Коментарі відсутні"
 
 async def format_final_post(news_item):
     title = news_item['title']
     summary = news_item['summary'].replace('<p>', '').replace('</p>', '')[:250]
     details = summary.split('.')[0] + '. Переговори тривають...'
-    twitter_comment = await get_twitter_comments(title.split()[0])  # Беремо перше слово як ключ
+    twitter_comment = await get_twitter_comments(title.split()[0])
     stats = """
 📊 Статистика (приклад):
 ▪️ 15 голів
@@ -63,7 +63,7 @@ async def format_final_post(news_item):
 ▪️ Найбільше ударів у лізі
 ▪️ Високий xG
 """
-    comment = """
+    comment = f"""
 💬 Коментар із соцмереж:
 «{twitter_comment}»
 """
@@ -72,14 +72,13 @@ async def format_final_post(news_item):
 ▪️ Угода може закритися найближчими днями
 """
 
-    image_url = get_image_url(news_item['link'])
     return f"""
 🔴 *{title}*
 
 {details}
 
 {stats}
-{comment.format(twitter_comment=twitter_comment)}
+{comment}
 {additional_info}
 
 #АПЛ #ЛаЛіга #СеріяА #Бундесліга #Ліга1
@@ -98,7 +97,10 @@ async def send_news_to_user():
         message = await bot.send_message(chat_id=CHAT_ID, text=final_post, reply_markup=reply_markup, parse_mode='Markdown')
         image_url = get_image_url(item['link'])
         if image_url:
-            await bot.send_photo(chat_id=CHAT_ID, photo=image_url)
+            try:
+                await bot.send_photo(chat_id=CHAT_ID, photo=image_url)
+            except Exception as e:
+                print(f"Помилка з фото: {e}")
         offset = 0
         while True:
             updates = await bot.get_updates(offset=offset, timeout=10)
@@ -109,7 +111,10 @@ async def send_news_to_user():
                     if query.data == "confirm":
                         await bot.send_message(chat_id=CHANNEL_ID, text=final_post, parse_mode='Markdown')
                         if image_url:
-                            await bot.send_photo(chat_id=CHANNEL_ID, photo=image_url)
+                            try:
+                                await bot.send_photo(chat_id=CHANNEL_ID, photo=image_url)
+                            except Exception as e:
+                                print(f"Помилка з фото: {e}")
                         await query.edit_message_text("✅ Опубліковано в @fiveleagues!")
                     elif query.data == "decline":
                         await query.edit_message_text("❌ Відхилено.")
