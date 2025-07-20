@@ -1,3 +1,6 @@
+import os
+os.environ['PORT'] = '0'  # Ігноруємо порт, щоб уникнути помилки Render
+
 import requests
 import telegram
 import feedparser
