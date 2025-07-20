@@ -1,12 +1,13 @@
 import requests
 import telegram
 import feedparser
+import time
 import os
 
 # Налаштування
-TELEGRAM_TOKEN = 'YOUR_BOT_TOKEN'  # Твій токен від BotFather
-CHAT_ID = 'YOUR_CHAT_ID'  # Твій Telegram ID
-CHANNEL_ID = '@YourChannelName'  # Назва каналу
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '7578141836:AAGj_be7DOaq0wT-RL53gVDFEn_ZZMDNCXM')
+CHAT_ID = os.getenv('CHAT_ID', '8142520596')
+CHANNEL_ID = os.getenv('CHANNEL_ID', 'fiveleagues')
 
 # RSS-стрічки
 RSS_FEEDS = [
