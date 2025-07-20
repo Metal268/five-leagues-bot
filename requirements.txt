@@ -1,5 +1,4 @@
 requests
 beautifulsoup4
-python-telegram-bot
+python-telegram-bot==13.7  # Стабільна версія, сумісна з кодом
 feedparser
-gunicorn
