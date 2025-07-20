@@ -1,6 +1,5 @@
 import asyncio
 import telegram
-from telegram.ext import Application, CallbackQueryHandler
 import feedparser
 import os
 
@@ -20,7 +19,6 @@ RSS_FEEDS = [
 
 # Ініціалізація бота
 bot = telegram.Bot(token=TELEGRAM_TOKEN)
-application = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # Ігнорування порту для Render
 os.environ['PORT'] = '0'
@@ -58,20 +56,21 @@ async def send_news_to_user():
              {"text": "✍️ Виправити", "callback_data": "edit"}]
         ]
         reply_markup = telegram.InlineKeyboardMarkup(keyboard)
-        await bot.send_message(chat_id=CHAT_ID, text=post, reply_markup=reply_markup, parse_mode='Markdown')
-
-async def button_handler(update, context):
-    query = update.callback_query
-    await query.answer()
-    if query.data == "confirm":
-        await query.edit_message_text("✅ Опубліковано в @fiveleagues! (Поки тест)")
-        # Тут можна додати код для публікації в канал, але поки залишимо як є
-    elif query.data == "decline":
-        await query.edit_message_text("❌ Відхилено.")
-    elif query.data == "edit":
-        await query.edit_message_text("✍️ Введи новий текст у відповіді.")
-
-application.add_handler(CallbackQueryHandler(button_handler))
+        message = await bot.send_message(chat_id=CHAT_ID, text=post, reply_markup=reply_markup, parse_mode='Markdown')
+        # Обробка кнопок
+        while True:
+            update = await bot.get_updates(timeout=10)
+            for u in update:
+                if u.callback_query and u.callback_query.message.message_id == message.message_id:
+                    query = u.callback_query
+                    await query.answer()
+                    if query.data == "confirm":
+                        await query.edit_message_text("✅ Опубліковано в @fiveleagues! (Поки тест)")
+                    elif query.data == "decline":
+                        await query.edit_message_text("❌ Відхилено.")
+                    elif query.data == "edit":
+                        await query.edit_message_text("✍️ Введи новий текст у відповіді.")
+                    return  # Вихід із циклу після обробки
 
 async def main():
     while True:
@@ -79,4 +78,4 @@ async def main():
         await asyncio.sleep(3600)  # Перевірка кожну годину
 
 if __name__ == '__main__':
-    asyncio.run(application.run_polling())
+    asyncio.run(main())
