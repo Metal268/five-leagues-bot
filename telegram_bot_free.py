@@ -36,43 +36,50 @@ async def fetch_news():
     return news
 
 async def format_final_post(news_item):
-    # Готовий пост із журналістським стилем
-    return f"""
-🎙 *ОГЛЯД НОВИНИ З ТОП-5 ЛІГ* 🎙
-*{news_item['title'].upper()}*
-
-🔎 *Деталі:* {news_item['summary'][:250].replace('<p>', '').replace('</p>', '')}  
-💡 *Коментар експерта:* Це може вплинути на боротьбу за чемпіонство! Що думаєте?  
-🌐 [Читати повністю]({news_item['link']})
-
-#АПЛ #ЛаЛіга #СеріяА #Бундесліга #Ліга1
+    # Створюємо структурований пост за прикладом
+    title = news_item['title']
+    summary = news_item['summary'].replace('<p>', '').replace('</p>', '')[:250]
+    
+    # Поки placeholder для статистики та коментаря (можна оновити пізніше)
+    stats = """
+📊 Статистика (приклад):
+▪️ 15 голів
+▪️ 8 асистів
+▪️ Найбільше ударів у лізі (117)
+▪️ 2-й за очікуваними голами (xG = 21.6)
+"""
+    comment = """
+💬 Коментар експерта:
+«Тактично гнучкий, розумний, добре діє в пресингу.»
+"""
+    additional_info = """
+📌 Що ще відомо:
+▪️ Деталі трансферу уточнюються
 """
 
-async def format_preview_post(news_item):
-    # Попередній перегляд для затвердження
-    comment = "👉 Перевір і затверди пост для @fiveleagues! Твоя думка? 👇"
     return f"""
-📝 *ПЕРЕДПРОСМОТР ПОСТА* 📝
-*{news_item['title'].upper()}*
+🔴 *{title}*
 
-🔎 {news_item['summary'][:150].replace('<p>', '').replace('</p>', '')}...  
-🌐 [Джерело]({news_item['link']})
+{summary}...
+
+{stats}
 {comment}
-💬 *Твоя дія:*
-✅ Підтвердити | ❌ Відхилити | ✍️ Виправити
+{additional_info}
+
+#АПЛ #ЛаЛіга #СеріяА #Бундесліга #Ліга1
 """
 
 async def send_news_to_user():
     news = await fetch_news()
     for item in news:
-        preview_post = await format_preview_post(item)
+        final_post = await format_final_post(item)
         keyboard = [
             [{"text": "✅ Підтвердити", "callback_data": "confirm"},
              {"text": "❌ Відхилити", "callback_data": "decline"},
              {"text": "✍️ Виправити", "callback_data": "edit"}]
         ]
         reply_markup = telegram.InlineKeyboardMarkup(keyboard)
-        message = await bot.send_message(chat_id=CHAT_ID, text=preview_post, reply_markup=reply_markup, parse_mode='Markdown')
+        message = await bot.send_message(chat_id=CHAT_ID, text=final_post, reply_markup=reply_markup, parse_mode='Markdown')
         # Ручна обробка кнопок
         offset = 0
         while True:
@@ -82,7 +89,6 @@ async def send_news_to_user():
                     query = update.callback_query
                     await query.answer()
                     if query.data == "confirm":
-                        final_post = await format_final_post(item)
                         await bot.send_message(chat_id=CHANNEL_ID, text=final_post, parse_mode='Markdown')
                         await query.edit_message_text("✅ Опубліковано в @fiveleagues!")
                     elif query.data == "decline":
